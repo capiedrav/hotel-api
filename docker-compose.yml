@@ -1,0 +1,18 @@
+services:
+
+  hotel-api:
+
+    build: .
+
+    ports:
+      - 8000:8000
+
+    volumes:
+      - ./source:/app/source
+
+    command: |
+      python manage.py runserver 0.0.0.0:8000
+
+    container_name: hotel-api-cntr
+
+
