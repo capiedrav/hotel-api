@@ -37,6 +37,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # local-apps
+    "hotel_app.apps.HotelAppConfig",
+
+    # third-party apps
+    "rest_framework",
 ]
 
 MIDDLEWARE = [
