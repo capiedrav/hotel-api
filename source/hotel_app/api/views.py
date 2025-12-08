@@ -13,6 +13,7 @@ class RootAPIView(APIView):
         return Response({"message": "Hello, World!"})
 
 
-class RoomListAPIView(viewsets.ModelViewSet):
+class RoomViewSet(viewsets.ModelViewSet):
+
     queryset = Room.objects.all()
     serializer_class = RoomSerializer

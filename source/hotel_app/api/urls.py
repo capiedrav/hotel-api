@@ -1,7 +1,11 @@
-from django.urls import path
-from .views import RootAPIView, RoomListAPIView
+from django.urls import path, include
+from .views import RootAPIView, RoomViewSet
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r"rooms", RoomViewSet)
 
 urlpatterns = [
     path("", RootAPIView.as_view(), name="api-root"),
-    path("rooms/", RoomListAPIView.as_view(actions={"get": "list"}), name="list-rooms"),
+    path("", include(router.urls))
 ]
