@@ -1,9 +1,11 @@
 from django.test import TestCase
-from django.urls import reverse
+from django.urls import reverse, resolve
 from rest_framework import status
 from rest_framework.test import APIClient
 from ..models import Room
 from .serializers import RoomSerializer
+from .views import RootAPIView, RoomViewSet
+
 
 # Create your tests here.
 
@@ -20,6 +22,23 @@ class HotelAPITests(TestCase):
             rooms.append(Room(number=f"Room {i}", size=25, price=100))
 
         Room.objects.bulk_create(rooms)
+
+    def test_api_root_is_resolved_to_RootAPIView(self):
+
+        view = resolve(reverse("api-root"))
+
+        self.assertEqual(view.func.view_class, RootAPIView)
+
+    def test_room_api_is_resolved_to_RoomViewSet(self):
+
+        view = resolve(reverse("room-list")) # this view is used in GET and POST requests
+
+        self.assertEqual(view.func.__name__, RoomViewSet.__name__)
+
+        # this view is used in GET, PUT, PATCH and DELETE requests
+        view = resolve(reverse("room-detail", kwargs={"pk": 1}))
+
+        self.assertEqual(view.func.__name__, RoomViewSet.__name__)
 
     def test_api_root(self):
 
