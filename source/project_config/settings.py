@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 
     # local-apps
     "hotel_app.apps.HotelAppConfig",
+    "users_app.apps.UsersAppConfig",
 
     # third-party apps
     "rest_framework",
@@ -126,3 +127,5 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AUTH_USER_MODEL = 'users_app.CustomUser'
