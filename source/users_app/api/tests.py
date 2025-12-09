@@ -15,12 +15,13 @@ class UserAPITests(TestCase):
     def setUp(self):
 
         self.client = APIClient()
+        self.payload = {"email": "test_user@example.com", "password": "testpassword"}
 
     @staticmethod
     def create_users():
         users = []
         for i in range(1, 11):
-            users.append(User(username=f"test_user{i}", email=f"test_user{i}@example.com", password="testpassword"))
+            users.append(User(email=f"test_user{i}@example.com", password="testpassword"))
 
         User.objects.bulk_create(users)
 
@@ -45,9 +46,13 @@ class UserAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json(), UserSerializer(User.objects.all(), many=True).data)
 
+        # check user's password is not included in the response
+        for user in response.json():
+            self.assertNotIn("password", user)
+
     def test_get_user_by_id(self):
 
-        User.objects.create(username='test_user', email='test_user@example.com', password="testpassword")
+        User.objects.create(**self.payload)
 
         response = self.client.get(reverse("user-detail", kwargs={"pk": 1}))
 
@@ -56,37 +61,102 @@ class UserAPITests(TestCase):
 
     def test_create_user(self):
 
-        payload = {"username": "test_user", "email": "test_user@example.com", "password": "testpassword"}
-        response = self.client.post(reverse("user-list"), data=payload)
+        # payload = {"email": "test_user@example.com", "password": "testpassword"}
+        response = self.client.post(reverse("user-list"), data=self.payload)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.json(), UserSerializer(User.objects.get(pk=1)).data)
 
+        # check user's password is not included in the response
+        self.assertNotIn("password", response.json())
+
+    def test_cant_create_user_with_invalid_email(self):
+
+        wrong_payload = {"email": "not an email", "password": "testpassword"}
+        response = self.client.post(reverse("user-list"), data=wrong_payload)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cant_create_user_without_email(self):
+
+        wrong_payload = {"password": "testpassword"}
+        response = self.client.post(reverse("user-list"), data=wrong_payload)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_update_user(self):
 
-        User.objects.create(username='test_user', email='test_user@example.com', password="testpassword")
+        User.objects.create(**self.payload)
 
-        payload = {"username": "new_username", "email": "new_username@example.com", "password": "testpassword"}
-        response = self.client.put(reverse("user-detail", kwargs={"pk": 1}), data=payload)
+        new_payload = {"email": "new_username@example.com", "password": "testpassword"}
+        response = self.client.put(reverse("user-detail", kwargs={"pk": 1}), data=new_payload)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json(), UserSerializer(User.objects.get(pk=1)).data)
+
+    def test_cant_update_user_without_email(self):
+
+        User.objects.create(**self.payload)
+
+        wrong_payload = {"password": "testpassword"}
+
+        response = self.client.put(reverse("user-detail", kwargs={"pk": 1}), data=wrong_payload)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cant_update_user_with_invalid_email(self):
+
+        User.objects.create(**self.payload)
+
+        wrong_payload = {"email": "not an email"}
+        response = self.client.put(reverse("user-detail", kwargs={"pk": 1}), data=wrong_payload)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_patch_user(self):
 
-        User.objects.create(username='test_user', email='test_user@example.com', password="testpassword")
+        User.objects.create(**self.payload)
 
-        payload = {"username": "new_username", "email": "new_username@example.com"}
-        response = self.client.patch(reverse("user-detail", kwargs={"pk": 1}), data=payload)
+        wrong_payload = {"email": "new_username@example.com"}
+        response = self.client.patch(reverse("user-detail", kwargs={"pk": 1}), data=wrong_payload)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json(), UserSerializer(User.objects.get(pk=1)).data)
 
+    def test_cant_patch_user_without_email(self):
+
+        User.objects.create(**self.payload)
+
+        wrong_payload = {"password": ""}
+        response = self.client.patch(reverse("user-detail", kwargs={"pk": 1}), data=wrong_payload)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cant_patch_user_with_invalid_email(self):
+
+        User.objects.create(**self.payload)
+        wrong_payload = {"email": "not an email"}
+
+        response = self.client.patch(reverse("user-detail", kwargs={"pk": 1}), data=wrong_payload)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_delete_user(self):
 
-        User.objects.create(username='test_user', email='test_user@example.com', password="testpassword")
+        User.objects.create(**self.payload)
 
         response = self.client.delete(reverse("user-detail", kwargs={"pk": 1}))
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(User.objects.count(),0)
+
+    def test_cant_have_two_users_with_the_same_email(self):
+
+        User.objects.create(**self.payload) # create a user
+
+        # try to create a user with the same email
+        response = self.client.post(reverse("user-list"),
+                                    data={"email": self.payload["email"], "paswword": "anotherpassword"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(User.objects.count(),1)
