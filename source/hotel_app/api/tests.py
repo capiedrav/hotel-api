@@ -10,9 +10,30 @@ from .views import RootAPIView, RoomViewSet
 # Create your tests here.
 
 
-class HotelAPITests(TestCase):
+class RootAPITest(TestCase):
 
     def setUp(self):
+
+        self.client = APIClient()
+
+    def test_api_root_is_resolved_to_RootAPIView(self):
+
+        view = resolve(reverse("api-root"))
+
+        self.assertEqual(view.func.view_class, RootAPIView)
+
+    def test_api_root(self):
+
+        response = self.client.get(reverse("api-root"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json().get('message'), "Hello, World!")
+
+
+class RoomAPITests(TestCase):
+
+    def setUp(self):
+
         self.client = APIClient()
 
     @staticmethod
@@ -22,12 +43,6 @@ class HotelAPITests(TestCase):
             rooms.append(Room(number=f"Room {i}", size=25, price=100))
 
         Room.objects.bulk_create(rooms)
-
-    def test_api_root_is_resolved_to_RootAPIView(self):
-
-        view = resolve(reverse("api-root"))
-
-        self.assertEqual(view.func.view_class, RootAPIView)
 
     def test_room_api_is_resolved_to_RoomViewSet(self):
 
@@ -39,13 +54,6 @@ class HotelAPITests(TestCase):
         view = resolve(reverse("room-detail", kwargs={"pk": 1}))
 
         self.assertEqual(view.func.__name__, RoomViewSet.__name__)
-
-    def test_api_root(self):
-
-        response = self.client.get(reverse("api-root"))
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json().get('message'), "Hello, World!")
 
     def test_list_rooms(self):
 
