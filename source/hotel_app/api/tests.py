@@ -1,13 +1,17 @@
 from django.test import TestCase
 from django.urls import reverse, resolve
+from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APIClient
-from ..models import Room
-from .serializers import RoomSerializer
-from .views import RootAPIView, RoomViewSet
-
+from ..models import Room, Booking
+from .serializers import RoomSerializer, BookingSerializer
+from .views import RootAPIView, RoomViewSet, BookingViewSet
+from datetime import date, timedelta
 
 # Create your tests here.
+
+
+User = get_user_model()
 
 
 class RootAPITest(TestCase):
@@ -110,3 +114,77 @@ class RoomAPITests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Room.objects.all().count(), 0)
+
+
+class BookingAPITests(TestCase):
+
+    def setUp(self):
+
+        self.client = APIClient()
+
+    @staticmethod
+    def create_bookings():
+
+        rooms = []
+        users = []
+        for i in range(1, 11): # create rooms and users
+            rooms.append(Room(number=f"Room {i}", size=25, price=100))
+            users.append(User(email=f"testuser{i}@example.com", password="testpassword"))
+
+        Room.objects.bulk_create(rooms)
+        User.objects.bulk_create(users)
+
+        bookings = []
+        for i in range(len(rooms)): # create bookings
+            from_date = date.today()
+            to_date = date.today() + timedelta(days=10)
+            bookings.append(
+                Booking(
+                    customer=users[i],
+                    room=rooms[i],
+                    from_date=from_date,
+                    to_date=to_date,
+                    price=rooms[i].price * (to_date - from_date).days,
+                ))
+
+        Booking.objects.bulk_create(bookings)
+
+    @staticmethod
+    def create_a_booking():
+
+        room = Room.objects.create(number="Room 1", size=25, price=100)
+        user = User.objects.create(email="testuser@example.com", password="testpassword")
+
+        from_date = date.today()
+        to_date = date.today() + timedelta(days=10)
+        Booking.objects.create(
+            customer=user,
+            room=room,
+            from_date=from_date,
+            to_date=to_date,
+            price=room.price * (to_date - from_date).days
+        )
+
+    def test_booking_api_is_resolved_to_BookingViewSet(self):
+
+        view = resolve(reverse("booking-list"))
+
+        self.assertEqual(view.func.__name__, BookingViewSet.__name__)
+
+    def test_list_bookings(self):
+
+        self.create_bookings()
+
+        response = self.client.get(reverse('booking-list'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Booking.objects.all().count(), 10)
+
+    def test_get_booking_by_id(self):
+
+        self.create_a_booking()
+
+        response = self.client.get(reverse("booking-detail", kwargs={"pk": 1}))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json(), BookingSerializer(Booking.objects.get(pk=1)).data)
