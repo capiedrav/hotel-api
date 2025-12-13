@@ -12,6 +12,14 @@ class Room(models.Model):
     size = models.IntegerField(null=False)
     price = models.IntegerField(null=False)
 
+    class Meta:
+
+        constraints = [
+            models.CheckConstraint(check=models.Q(size__gt=0), name='room_size_check'), # room size must be > 0
+            models.CheckConstraint(check=models.Q(price__gt=0), name='room_price_check'), # room price must be > 0
+        ]
+
+
     def __str__(self):
         return self.number
 
