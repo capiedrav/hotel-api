@@ -27,10 +27,15 @@ class Booking(models.Model):
 
     def save(self, *args, **kwargs):
 
-        # calculate the price of the booking
-        self.price = (self.to_date - self.from_date).days * self.room.price
+        # calculate price of booking before saving
+        self.price = self.calculate_price()
 
         super().save(*args, **kwargs)
+
+    def calculate_price(self) -> int:
+
+        # calculate the price of the booking
+        return (self.to_date - self.from_date).days * self.room.price
 
     def __str__(self):
         return self.customer.username

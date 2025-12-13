@@ -243,3 +243,25 @@ class BookingAPITests(TestCase):
         # check booking price is calculated correctly
         expected_price = (new_to_date - booking.from_date).days * booking.room.price
         self.assertEqual(response.json()["price"], expected_price)
+
+    def test_patch_booking(self):
+
+        self.create_a_booking()
+
+        new_to_date = date.today() + timedelta(days=10)
+        payload = {"to_date": new_to_date}
+
+        response = self.client.patch(reverse("booking-detail", kwargs={"pk": 1}), data=payload)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json(), BookingSerializer(Booking.objects.get(pk=1)).data)
+
+    def test_delete_booking(self):
+
+        self.create_a_booking()
+
+        response = self.client.delete(reverse("booking-detail", kwargs={"pk": 1}))
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Booking.objects.all().count(), 0)
+
