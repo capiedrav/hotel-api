@@ -25,5 +25,12 @@ class Booking(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE)
     price = models.IntegerField(null=False)
 
+    def save(self, *args, **kwargs):
+
+        # calculate the price of the booking
+        self.price = (self.to_date - self.from_date).days * self.room.price
+
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.customer.username

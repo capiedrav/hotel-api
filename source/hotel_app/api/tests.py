@@ -1,3 +1,6 @@
+from hmac import new
+from http.client import responses
+
 from django.test import TestCase
 from django.urls import reverse, resolve
 from django.contrib.auth import get_user_model
@@ -167,7 +170,12 @@ class BookingAPITests(TestCase):
 
     def test_booking_api_is_resolved_to_BookingViewSet(self):
 
-        view = resolve(reverse("booking-list"))
+        view = resolve(reverse("booking-list")) # endpoint for GET and POST requests
+
+        self.assertEqual(view.func.__name__, BookingViewSet.__name__)
+
+        # endpoint for GET, PUT, PATCH and DELETE requests
+        view = resolve(reverse("booking-detail", kwargs={"pk": 1}))
 
         self.assertEqual(view.func.__name__, BookingViewSet.__name__)
 
@@ -188,3 +196,50 @@ class BookingAPITests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json(), BookingSerializer(Booking.objects.get(pk=1)).data)
+
+    def test_create_booking(self):
+
+        customer = User.objects.create(email="testuser@example.com", password="testpassword")
+        room = Room.objects.create(number="Room 1", size=25, price=100)
+
+        from_date = date.today()
+        to_date = date.today() + timedelta(days=10)
+
+        payload = {
+            "customer": customer.id,
+            "room": room.id,
+            "from_date": from_date,
+            "to_date": to_date,
+        }
+        response = self.client.post(reverse("booking-list"), data=payload)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.json(), BookingSerializer(Booking.objects.get(pk=1)).data)
+
+        # check booking price is calculated correctly
+        expected_price = (to_date - from_date).days * room.price
+        self.assertEqual(response.json()["price"], expected_price)
+
+    def test_update_booking(self):
+
+        self.create_a_booking()
+
+        booking = Booking.objects.first()
+
+        new_to_date = booking.from_date + timedelta(days=5) # new to_date
+
+        payload = {
+            "customer": booking.customer.id,
+            "room": booking.room.id,
+            "from_date": booking.from_date,
+            "to_date": new_to_date, # field to update
+        }
+
+        response = self.client.patch(reverse("booking-detail", kwargs={"pk": 1}), data=payload)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json(), BookingSerializer(Booking.objects.get(pk=1)).data)
+
+        # check booking price is calculated correctly
+        expected_price = (new_to_date - booking.from_date).days * booking.room.price
+        self.assertEqual(response.json()["price"], expected_price)
