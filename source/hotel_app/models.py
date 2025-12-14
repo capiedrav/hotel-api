@@ -1,9 +1,23 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-
+from datetime import date
 # Create your models here.
 
 User = get_user_model()
+
+
+def calculate_price(from_date: date, to_date: date, room_price: int) -> int:
+    """
+    Calculate the booking price.
+    """
+
+    price = (to_date - from_date).days * room_price
+
+    if price < 0:
+        raise ValueError("Booking price is negative")
+
+    return price
+
 
 class Room(models.Model):
 
@@ -33,17 +47,21 @@ class Booking(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE)
     price = models.IntegerField(null=False)
 
+    class Meta:
+
+        constraints = [
+            models.CheckConstraint( # booking days must be > 0
+                check=models.Q(to_date__gt=models.F("from_date")),
+                name='booking_days_check'),
+        ]
+
     def save(self, *args, **kwargs):
 
         # calculate price of booking before saving
-        self.price = self.calculate_price()
+        self.price = calculate_price(self.from_date, self.to_date, self.room.price)
 
         super().save(*args, **kwargs)
 
-    def calculate_price(self) -> int:
-
-        # calculate the price of the booking
-        return (self.to_date - self.from_date).days * self.room.price
 
     def __str__(self):
-        return self.customer.username
+        return self.customer.email
