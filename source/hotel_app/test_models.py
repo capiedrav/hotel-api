@@ -63,9 +63,9 @@ class BookingTests(TestCase):
         from_date = date.today()
         to_date = date.today() + timedelta(days=10)
 
-        Booking.objects.create(customer=user, room=room, from_date=from_date, to_date=to_date)
+        Booking.bookings.create(customer=user, room=room, from_date=from_date, to_date=to_date)
 
-        self.assertEqual(str(Booking.objects.first()), user.email)
+        self.assertEqual(str(Booking.bookings.first()), user.email)
 
     @skip
     def test_to_date_cant_be_less_than_or_equal_to_from_date(self):
@@ -76,7 +76,7 @@ class BookingTests(TestCase):
         wrong_to_date = date.today() - timedelta(days=10) # to_date is less than from_date
 
         with self.assertRaises(IntegrityError):
-            Booking.objects.create(customer=user, room=room, from_date=from_date, to_date=wrong_to_date)
+            Booking.bookings.create(customer=user, room=room, from_date=from_date, to_date=wrong_to_date)
 
     def test_booking_price(self):
 

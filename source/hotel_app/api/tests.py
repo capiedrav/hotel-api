@@ -142,15 +142,14 @@ class BookingAPITests(TestCase):
             from_date = date.today()
             to_date = date.today() + timedelta(days=10)
             bookings.append(
-                Booking(
+                Booking.create_booking(
                     customer=users[i],
                     room=rooms[i],
                     from_date=from_date,
                     to_date=to_date,
-                    price=rooms[i].price * (to_date - from_date).days,
                 ))
 
-        Booking.objects.bulk_create(bookings)
+        Booking.bookings.bulk_create(bookings)
 
     @staticmethod
     def create_a_booking():
@@ -160,12 +159,11 @@ class BookingAPITests(TestCase):
 
         from_date = date.today()
         to_date = date.today() + timedelta(days=10)
-        Booking.objects.create(
+        Booking.bookings.create(
             customer=user,
             room=room,
             from_date=from_date,
-            to_date=to_date,
-            price=room.price * (to_date - from_date).days
+            to_date=to_date
         )
 
     def test_booking_api_is_resolved_to_BookingViewSet(self):
@@ -186,7 +184,7 @@ class BookingAPITests(TestCase):
         response = self.client.get(reverse('booking-list'))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(Booking.objects.all().count(), 10)
+        self.assertEqual(Booking.bookings.all().count(), 10)
 
     def test_get_booking_by_id(self):
 
@@ -195,7 +193,7 @@ class BookingAPITests(TestCase):
         response = self.client.get(reverse("booking-detail", kwargs={"pk": 1}))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json(), BookingSerializer(Booking.objects.get(pk=1)).data)
+        self.assertEqual(response.json(), BookingSerializer(Booking.bookings.get(pk=1)).data)
 
     def test_create_booking(self):
 
@@ -214,7 +212,7 @@ class BookingAPITests(TestCase):
         response = self.client.post(reverse("booking-list"), data=payload)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.json(), BookingSerializer(Booking.objects.get(pk=1)).data)
+        self.assertEqual(response.json(), BookingSerializer(Booking.bookings.get(pk=1)).data)
 
         # check booking price is calculated correctly
         expected_price = (to_date - from_date).days * room.price
@@ -224,7 +222,7 @@ class BookingAPITests(TestCase):
 
         self.create_a_booking()
 
-        booking = Booking.objects.first()
+        booking = Booking.bookings.first()
 
         new_to_date = booking.from_date + timedelta(days=5) # new to_date
 
@@ -235,10 +233,10 @@ class BookingAPITests(TestCase):
             "to_date": new_to_date, # field to update
         }
 
-        response = self.client.patch(reverse("booking-detail", kwargs={"pk": 1}), data=payload)
+        response = self.client.put(reverse("booking-detail", kwargs={"pk": 1}), data=payload)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json(), BookingSerializer(Booking.objects.get(pk=1)).data)
+        self.assertEqual(response.json(), BookingSerializer(Booking.bookings.get(pk=1)).data)
 
         # check booking price is calculated correctly
         expected_price = (new_to_date - booking.from_date).days * booking.room.price
@@ -248,13 +246,17 @@ class BookingAPITests(TestCase):
 
         self.create_a_booking()
 
-        new_to_date = date.today() + timedelta(days=10)
+        new_to_date = date.today() + timedelta(days=5)
         payload = {"to_date": new_to_date}
 
         response = self.client.patch(reverse("booking-detail", kwargs={"pk": 1}), data=payload)
 
+        print(response.json())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json(), BookingSerializer(Booking.objects.get(pk=1)).data)
+        booking = Booking.bookings.first()
+        self.assertEqual(response.json(), BookingSerializer(booking).data)
+        expected_price = (new_to_date - booking.from_date).days * booking.room.price
+        self.assertEqual(response.json()["price"], expected_price)
 
     def test_delete_booking(self):
 
@@ -263,5 +265,5 @@ class BookingAPITests(TestCase):
         response = self.client.delete(reverse("booking-detail", kwargs={"pk": 1}))
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(Booking.objects.all().count(), 0)
+        self.assertEqual(Booking.bookings.all().count(), 0)
 

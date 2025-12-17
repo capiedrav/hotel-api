@@ -22,5 +22,5 @@ class RoomViewSet(viewsets.ModelViewSet):
 
 class BookingViewSet(viewsets.ModelViewSet):
 
-    queryset = Booking.objects.all()
+    queryset = Booking.bookings.all()
     serializer_class = BookingSerializer

@@ -19,6 +19,8 @@ def calculate_price(from_date: date, to_date: date, room_price: int) -> int:
     return price
 
 
+
+
 class Room(models.Model):
 
     id = models.AutoField(primary_key=True)
@@ -33,9 +35,19 @@ class Room(models.Model):
             models.CheckConstraint(check=models.Q(price__gt=0), name='room_price_check'), # room price must be > 0
         ]
 
-
     def __str__(self):
         return self.number
+
+
+class BookingManager(models.Manager):
+
+    def create(self, customer: User, from_date: date, to_date: date, room: Room) -> "Booking":
+
+        booking_price = calculate_price(from_date, to_date, room.price)
+        booking = self.model(customer=customer, from_date=from_date, to_date=to_date, room=room, price=booking_price)
+        booking.save()
+
+        return booking
 
 
 class Booking(models.Model):
@@ -46,6 +58,18 @@ class Booking(models.Model):
     customer = models.ForeignKey(User, on_delete=models.CASCADE)
     room = models.ForeignKey(Room, on_delete=models.CASCADE)
     price = models.IntegerField(null=False)
+    bookings = BookingManager() # default object manager
+
+    @classmethod
+    def create_booking(cls, customer: User, from_date: date, to_date: date, room: Room) -> "Booking":
+        """
+        Create a new booking (not saved into the database). Used primarily with bulk_create method.
+        """
+
+        booking_price = calculate_price(from_date, to_date, room.price)
+        booking = Booking(customer=customer, from_date=from_date, to_date=to_date, room=room, price=booking_price)
+
+        return booking
 
     class Meta:
 
@@ -55,12 +79,14 @@ class Booking(models.Model):
                 name='booking_days_check'),
         ]
 
-    def save(self, *args, **kwargs):
 
-        # calculate price of booking before saving
-        self.price = calculate_price(self.from_date, self.to_date, self.room.price)
 
-        super().save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #
+    #     # calculate price of booking before saving
+    #     self.price = calculate_price(self.from_date, self.to_date, self.room.price)
+    #
+    #     super().save(*args, **kwargs)
 
 
     def __str__(self):
