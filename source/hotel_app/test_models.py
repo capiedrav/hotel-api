@@ -1,10 +1,10 @@
-from unittest import skip
-
 from django.db import IntegrityError
 from django.test import TestCase
-from .models import Room, Booking, calculate_price
+from .models import Room, Booking, calculate_booking_price
 from django.contrib.auth import get_user_model
 from datetime import date, timedelta
+from unittest.mock import patch
+
 
 User = get_user_model()
 
@@ -49,6 +49,12 @@ class RoomTests(TestCase):
 
 class BookingTests(TestCase):
 
+
+    def setUp(self):
+
+        self.from_date = date(2025, 12, 1)
+        self.to_date = date(2025, 12, 11)
+
     @staticmethod
     def create_user_and_room():
 
@@ -60,39 +66,63 @@ class BookingTests(TestCase):
     def test_booking_str_representation(self):
 
         room, user =  self.create_user_and_room()
-        from_date = date.today()
-        to_date = date.today() + timedelta(days=10)
 
-        Booking.bookings.create(customer=user, room=room, from_date=from_date, to_date=to_date)
+        Booking.bookings.create(customer=user, room=room, from_date=self.from_date, to_date=self.to_date)
 
         self.assertEqual(str(Booking.bookings.first()), user.email)
 
-    @skip
     def test_to_date_cant_be_less_than_or_equal_to_from_date(self):
 
         room, user = self.create_user_and_room()
-
-        from_date = date.today()
-        wrong_to_date = date.today() - timedelta(days=10) # to_date is less than from_date
+        wrong_to_date =self.from_date - timedelta(days=10) # to_date is less than from_date
 
         with self.assertRaises(IntegrityError):
-            Booking.bookings.create(customer=user, room=room, from_date=from_date, to_date=wrong_to_date)
+            Booking.bookings.create(customer=user, room=room, from_date=self.from_date, to_date=wrong_to_date)
 
-    def test_booking_price(self):
+    def test_calculate_booking_price_function(self):
 
-        from_date = date.today()
-        to_date = date.today() + timedelta(days=10)
         room_price = 100
-
         expected_price = 1000
 
-        self.assertEqual(calculate_price(from_date, to_date, room_price), expected_price)
+        self.assertEqual(calculate_booking_price(self.from_date, self.to_date, room_price), expected_price)
 
-    def test_booking_price_cant_be_less_than_0(self):
+    @patch("hotel_app.models.calculate_booking_price")
+    def test_booking_price_cant_be_less_than_or_equal_to_0(self, mocked_calculate_booking_price):
 
-        from_date = date.today()
-        wrong_to_date = date.today() - timedelta(days=10) # to_date is less than from_date
-        room_price = 100
+        room, user = self.create_user_and_room()
+        mocked_calculate_booking_price.return_value = 0 # wrong booking price
 
-        with self.assertRaises(ValueError):
-            calculate_price(from_date, wrong_to_date, room_price)
+        with self.assertRaises(IntegrityError):
+            Booking.bookings.create(customer=user, from_date=self.from_date, to_date=self.to_date, room=room)
+
+        mocked_calculate_booking_price.assert_called_once()
+
+    def test_update_booking_method(self):
+
+        room, user = self.create_user_and_room()
+
+        booking = Booking.bookings.create(
+            customer=user,
+            from_date=self.from_date,
+            to_date=self.to_date,
+            room=room
+        )
+        new_to_date = date(2025,12,15)
+        expected_price = 1400
+        booking.update_booking(from_date=self.from_date, to_date=new_to_date, room=room)
+
+        self.assertEqual(booking.to_date, new_to_date)
+        self.assertEqual(booking.price, expected_price)
+
+    def test_create_booking_class_method_doesnt_save(self):
+
+        room, user = self.create_user_and_room()
+
+        booking = Booking.create_booking(
+            customer=user,
+            from_date=self.from_date,
+            to_date=self.to_date,
+            room=room
+        )
+
+        self.assertEqual(Booking.bookings.count(), 0)
