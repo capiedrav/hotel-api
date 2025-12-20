@@ -208,6 +208,10 @@ class BookingAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.json(), BookingSerializer(Booking.bookings.get(pk=1)).data)
 
+        # check the price is calculated correctly
+        expected_price = 1000
+        self.assertEqual(response.json()["price"], expected_price)
+
     def test_update_booking(self):
 
         self.create_a_booking()
@@ -229,6 +233,10 @@ class BookingAPITests(TestCase):
         booking.refresh_from_db()
         self.assertEqual(response.json(), BookingSerializer(booking).data)
 
+        # check the price is calculated correctly
+        expected_price = 1400
+        self.assertEqual(response.json()["price"], expected_price)
+
     def test_patch_booking(self):
 
         self.create_a_booking()
@@ -241,6 +249,9 @@ class BookingAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         booking = Booking.bookings.first()
         self.assertEqual(response.json(), BookingSerializer(booking).data)
+
+        expected_price = 1400
+        self.assertEqual(response.json()["price"], expected_price)
 
     def test_delete_booking(self):
 
